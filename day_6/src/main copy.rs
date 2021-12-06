@@ -1,9 +1,5 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::sync::mpsc::sync_channel;
-use std::sync::mpsc::{SyncSender, Receiver};
-use std::{thread, time};
-
 fn main() {
     let filename = "src/test.txt";
     part1(filename);
@@ -51,48 +47,30 @@ fn process(input: &str) -> usize {
 }
 
 fn process2(input: &str, days: u32) -> usize {
-    let fishes: Vec<Fish> = parse_fish(input);
+    let mut fishes: Vec<Fish> = parse_fish(input);
     let mut total = 0;
-    let (tx, rx): (SyncSender<usize>, Receiver<usize>) = sync_channel(1000);
-
-    for fish in fishes {
-        let tx = tx.clone();
-        thread::spawn(move || {
-            tx.send(calc_lifetime_spawns(fish.time_til_spawn, days)).unwrap();
-        });
-    }
-    drop(tx);
-    while let Ok(msg) = rx.recv() {
-        total += msg;
+    for fish in &mut fishes {
+        total += calc_lifetime_spawns(fish, days);
     }
     println!("part 2 total {}", total);
     return total;
 }
 
-fn calc_lifetime_spawns(initial: u32, days: u32) -> usize {
-    let mut t = initial;
-    if initial > days  {
+fn calc_lifetime_spawns(fish: &mut Fish, days: u32) -> usize {
+    if fish.time_til_spawn > days  {
         return 1
     }
-    let mut next_days = days - initial;
-    for _ in 0..initial {
-        t = get_next(t);
+    let mut next_days = days - fish.time_til_spawn;
+    for _ in 0..fish.time_til_spawn {
+        fish.next();
     }
     if next_days > 0 {
         // spawn
-        t = get_next(t);
+        fish.next();
         next_days -= 1;
-        return calc_lifetime_spawns(t, next_days) + calc_lifetime_spawns(t, next_days)
+        return calc_lifetime_spawns(fish, next_days) + calc_lifetime_spawns(&mut Fish { time_til_spawn: 8 }, next_days)
     } else {
         return 1
-    }
-}
-
-fn get_next(val: u32) -> u32 {
-    if val == 0 {
-        return 6
-    } else {
-        return val - 1
     }
 }
 
