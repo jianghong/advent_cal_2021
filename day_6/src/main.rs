@@ -2,9 +2,12 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 fn main() {
+    let now = std::time::Instant::now();
     let filename = "src/input.txt";
-    part1(filename);
+    // part1(filename);
     part2(filename);
+    // print elasped time as nanoseconds
+    println!("elapsed as nanoseconds {}", now.elapsed().as_nanos());
 }
 
 fn part1(filename: &str) {
@@ -69,6 +72,7 @@ fn process2(input: &str, days: u32) -> usize {
 
     for _ in 0..days {
         let about_to_spawn_count = spawn_counts[0];
+        // slide counts over 1
         for i in 0..spawn_counts.len() {
             if i == 6 {
                 spawn_counts[i] = spawn_counts[i+1];
