@@ -1,5 +1,9 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::sync::mpsc::sync_channel;
+use std::sync::mpsc::{SyncSender, Receiver};
+use std::{thread, time};
+
 fn main() {
     let filename = "src/test.txt";
     part1(filename);
@@ -10,7 +14,7 @@ fn part1(filename: &str) {
     let file = File::open(filename).unwrap();
     let reader = BufReader::new(file);
     let input = reader.lines().next().unwrap().unwrap();
-    process(&input);
+    process(&input, 80);
 }
 
 fn part2(filename: &str) {
@@ -24,8 +28,7 @@ fn parse_fish(input: &str) -> Vec<Fish> {
     input.split(",").map(|i| Fish { time_til_spawn: i.parse().unwrap() }).collect()
 }
 
-fn process(input: &str) -> usize {
-    let days = 80;
+fn process(input: &str, days: u32) -> usize {
     let mut fishes: Vec<Fish> = parse_fish(input);
 
     let mut new_fish_count = 0;
@@ -47,30 +50,63 @@ fn process(input: &str) -> usize {
 }
 
 fn process2(input: &str, days: u32) -> usize {
-    let mut fishes: Vec<Fish> = parse_fish(input);
+    let fishes: Vec<Fish> = parse_fish(input);
     let mut total = 0;
-    for fish in &mut fishes {
-        total += calc_lifetime_spawns(fish, days);
+    let (tx, rx): (SyncSender<usize>, Receiver<usize>) = sync_channel(1000);
+
+    for fish in fishes {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            tx.send(calc_lifetime_spawns(fish.time_til_spawn, days)).unwrap();
+        });
+    }
+    drop(tx);
+    while let Ok(msg) = rx.recv() {
+        total += msg;
     }
     println!("part 2 total {}", total);
     return total;
 }
 
-fn calc_lifetime_spawns(fish: &mut Fish, days: u32) -> usize {
-    if fish.time_til_spawn > days  {
+fn calc_lifetime_spawns(initial: u32, days: u32) -> usize {
+    let mut t = initial;
+    if initial > days  {
         return 1
     }
-    let mut next_days = days - fish.time_til_spawn;
-    for _ in 0..fish.time_til_spawn {
-        fish.next();
+    let mut next_days = days - initial;
+    for _ in 0..initial {
+        t = get_next(t);
     }
     if next_days > 0 {
         // spawn
-        fish.next();
+        let (tx, rx): (SyncSender<usize>, Receiver<usize>) = sync_channel(1000);
+        let tx2 = tx.clone();
+        t = get_next(t);
         next_days -= 1;
-        return calc_lifetime_spawns(fish, next_days) + calc_lifetime_spawns(&mut Fish { time_til_spawn: 8 }, next_days)
+        let mut total = 0;
+        // return calc_lifetime_spawns(fish, next_days) + calc_lifetime_spawns(&mut Fish { time_til_spawn: 8 }, next_days)
+        thread::spawn(move || {
+            tx.send(calc_lifetime_spawns(t, next_days)).unwrap();
+        });
+        thread::spawn(move || {
+            tx2.send(calc_lifetime_spawns(8, next_days)).unwrap();
+        });
+
+        while let Ok(msg) = rx.recv() {
+            total += msg;
+        }
+        return total
+
     } else {
         return 1
+    }
+}
+
+fn get_next(val: u32) -> u32 {
+    if val == 0 {
+        return 6
+    } else {
+        return val - 1
     }
 }
 
@@ -96,7 +132,7 @@ mod tests {
     #[test]
     fn test_example() {
         let input = "3,4,3,1,2";
-        let result = process(input);
+        let result = process(input, 80);
         assert_eq!(result, 5934);
     }
 
