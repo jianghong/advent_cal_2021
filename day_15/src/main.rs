@@ -9,41 +9,53 @@ fn main() {
 
 fn part1() {
     let reader = BufReader::new(File::open("src/test.txt").unwrap());
-    let mut grid: Vec<Vec<u8>> = Vec::new();
+    let mut grid: Vec<Vec<u32>> = Vec::new();
     for (i, line) in reader.lines().enumerate() {
         let line = line.unwrap();
-        grid.push(line.chars().map(|c| c as u8).collect());
+        grid.push(line.chars().map(|c| c.to_digit(10).unwrap() ).collect());
     }
+
     let end_i = grid.len() - 1;
     let end_j = grid[0].len() - 1;
     let visited_grid = vec![vec![false; end_j + 1]; end_i + 1];
-    find_min_path(&0, 0, 0, 0, &grid, visited_grid, end_i, end_j);
+    let curr_path = Vec::new();
+    find_min_path(&0, 0, 0, 0, curr_path, &grid, visited_grid, end_i, end_j);
 }
 
 fn find_min_path(
-    val: &u8,
+    val: &u32,
     i: usize,
     j: usize,
     curr_risk: u64,
-    grid: &Vec<Vec<u8>>,
+    curr_path: Vec<(u32, u32)>,
+    grid: &Vec<Vec<u32>>,
     visited_grid: Vec<Vec<bool>>,
     end_i: usize,
     end_j: usize
 ) -> u64
 {
     let new_risk = curr_risk + *val as u64;
+    let mut new_path = curr_path.clone();
+    new_path.push((i as u32, j as u32));
     if i == end_i && j == end_j {
-        return curr_risk;
+        // println!("i {} j {}", i, j);
+        // println!("new path {:?}", new_path);
+        // println!("curr risk {}", curr_risk);
+        // println!("new_risk {}", new_risk);
+        // println!("val: {} i {} j {}", val, i, j);
+        return new_risk;
     }
     let mut visited_grid = visited_grid.clone();
     visited_grid[i][j] = true;
 
     let mut results: Vec<u64> = Vec::new();
+    // println!("results {:?}", results);
+    // println!("i {} j {}", i, j);
     // check up
     if i != 0 {
         if visited_grid[i - 1][j] == false {
             results.push(
-                find_min_path(&grid[i - 1][j], i - 1, j, new_risk, grid, visited_grid.clone(), end_i, end_j)
+                find_min_path(&grid[i - 1][j], i - 1, j, new_risk, new_path.clone(), grid, visited_grid.clone(), end_i, end_j)
             );
         }
     }
@@ -51,7 +63,7 @@ fn find_min_path(
     if i != end_i {
         if visited_grid[i + 1][j] == false {
             results.push(
-                find_min_path(&grid[i + 1][j], i + 1, j, new_risk, grid, visited_grid.clone(), end_i, end_j)
+                find_min_path(&grid[i + 1][j], i + 1, j, new_risk, new_path.clone(), grid, visited_grid.clone(), end_i, end_j)
             );
         }
     }
@@ -60,7 +72,7 @@ fn find_min_path(
     if j != 0 {
         if visited_grid[i][j - 1] == false {
             results.push(
-                find_min_path(&grid[i][j - 1], i, j - 1, new_risk, grid, visited_grid.clone(), end_i, end_j)
+                find_min_path(&grid[i][j - 1], i, j - 1, new_risk, new_path.clone(), grid, visited_grid.clone(), end_i, end_j)
             );
         }
     }
@@ -69,11 +81,15 @@ fn find_min_path(
     if j != end_j {
         if visited_grid[i][j + 1] == false {
             results.push(
-                find_min_path(&grid[i][j + 1], i, j + 1, new_risk, grid, visited_grid.clone(), end_i, end_j)
+                find_min_path(&grid[i][j + 1], i, j + 1, new_risk, new_path.clone(), grid, visited_grid.clone(), end_i, end_j)
             );
         }
     }
-    println!("results: {:?}", results);
-    println!("i {} j {}", i, j);
+
+    if results.is_empty() {
+        return 0;
+    }
+    
+    // println!("visited grid {:?}", visited_grid);
     return *results.iter().min().unwrap();
 }
