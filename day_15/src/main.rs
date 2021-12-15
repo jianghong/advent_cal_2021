@@ -1,7 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::fs::File;
-use std::cmp::Ordering;
-use std::cmp::max;
+use std::cmp::min;
 use std::collections::HashMap;
 
 fn main() {
@@ -10,7 +9,7 @@ fn main() {
 }
 
 fn part1() {
-    let reader = BufReader::new(File::open("src/test.txt").unwrap());
+    let reader = BufReader::new(File::open("src/input.txt").unwrap());
     let mut grid: Vec<Vec<u32>> = Vec::new();
     for (_, line) in reader.lines().enumerate() {
         let line = line.unwrap();
@@ -22,8 +21,10 @@ fn part1() {
     let visited_grid = vec![vec![false; end_j + 1]; end_i + 1];
     let curr_path = Vec::new();
     let mut memoized_paths: HashMap<(usize, usize), u64> = HashMap::new();
-    let min_path_risk = find_min_path(&0, 0, 0, 0, curr_path, &grid, visited_grid, end_i, end_j, None, &mut memoized_paths);
-    println!("part 1 {}", min_path_risk);
+    find_min_path(&0, 0, 0, 0, curr_path, &grid, visited_grid, end_i, end_j, None, &mut memoized_paths);
+    // println!("memoized paths {:?}", memoized_paths);
+    let result = min(memoized_paths.get(&(0, 1)).unwrap(), memoized_paths.get(&(1, 0)).unwrap());
+    println!("part 1 {}", result);
 }
 
 fn find_min_path(
@@ -66,7 +67,7 @@ fn find_min_path(
     let mut visited_grid = visited_grid.clone();
     visited_grid[i][j] = true;
 
-    // greed algo, pick the next lowest value to check first
+    //  always pick where i and j are greater
     let mut neighbor_vals: Vec<(u32, usize, usize)> = Vec::new();
     // if i != 0 {
     //     neighbor_vals.push((grid[i - 1][j], i - 1, j));
@@ -80,7 +81,8 @@ fn find_min_path(
     if j != end_j {
         neighbor_vals.push((grid[i][j + 1], i, j + 1));
     }
-    
+
+    // greed algo, pick the next lowest value to check first
     neighbor_vals.sort_by(|a, b| a.0.cmp(&b.0));
 
     let mut results = Vec::new();
