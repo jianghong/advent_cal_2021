@@ -46,59 +46,48 @@ fn find_min_path(
         // println!("curr risk {}", curr_risk);
         // println!("new_risk {}", new_risk);
         // println!("val: {} i {} j {}", val, i, j);
-        return new_risk;
+        println!("found path with risk {}", new_risk)
+;        return new_risk;
     }
 
     let mut results = prev_results.clone();
     if !results.is_empty() && results.iter().any(|&x| new_risk > x) {
         // println!("results {:?}", results);
-        // println!("new_risk {}", new_risk);
-        return 9999;
+        // println!("pruning... curr_path {:?}", curr_path);
+        return u64::MAX;
     }
 
     // if new
     let mut visited_grid = visited_grid.clone();
     visited_grid[i][j] = true;
 
-    // println!("results {:?}", results);
-    // println!("i {} j {}", i, j);
-    // check up
+    // greed algo, pick the next lowest value to check first
+    let mut neighbor_vals: Vec<(u32, usize, usize)> = Vec::new();
     if i != 0 {
-        if visited_grid[i - 1][j] == false {
-            results.push(
-                find_min_path(&grid[i - 1][j], i - 1, j, new_risk, new_path.clone(), grid, visited_grid.clone(), end_i, end_j, results.clone())
-            );
-        }
+        neighbor_vals.push((grid[i - 1][j], i - 1, j));
     }
-    // check down
     if i != end_i {
-        if visited_grid[i + 1][j] == false {
-            results.push(
-                find_min_path(&grid[i + 1][j], i + 1, j, new_risk, new_path.clone(), grid, visited_grid.clone(), end_i, end_j, results.clone())
-            );
-        }
+        neighbor_vals.push((grid[i + 1][j], i + 1, j));
     }
-
-    // check left
     if j != 0 {
-        if visited_grid[i][j - 1] == false {
-            results.push(
-                find_min_path(&grid[i][j - 1], i, j - 1, new_risk, new_path.clone(), grid, visited_grid.clone(), end_i, end_j, results.clone())
-            );
-        }
+        neighbor_vals.push((grid[i][j - 1], i, j - 1));
+    }
+    if j != end_j {
+        neighbor_vals.push((grid[i][j + 1], i, j + 1));
     }
 
-    // check right
-    if j != end_j {
-        if visited_grid[i][j + 1] == false {
+    neighbor_vals.sort_by(|a, b| a.0.cmp(&b.0));
+
+    for neighbor in neighbor_vals {
+        if !visited_grid[neighbor.1][neighbor.2] {
             results.push(
-                find_min_path(&grid[i][j + 1], i, j + 1, new_risk, new_path.clone(), grid, visited_grid.clone(), end_i, end_j, results.clone())
+                find_min_path(&grid[neighbor.1][neighbor.2], neighbor.1, neighbor.2, new_risk, new_path.clone(), grid, visited_grid.clone(), end_i, end_j, results.clone())
             );
         }
     }
 
     if results.is_empty() {
-        return 9999;
+        return u64::MAX;
     }
     
     // println!("visited grid {:?}", visited_grid);
