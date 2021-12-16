@@ -2,7 +2,7 @@ fn main() {
     println!("Hello, world!");
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Packet {
     version: u32,
     binary_bits: String,
@@ -16,15 +16,15 @@ struct LiteralData {
     literal: u32
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct OperatorData {
     length_type: LengthType,
-    packets: Vec<Packet>
+    subpackets: Vec<Packet>
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct LengthType {
-    length_type_id: u32,
+    type_id: u32,
     length: u32,
 }
 
@@ -36,32 +36,54 @@ fn decode_p1(input: &str) -> Vec<Packet> {
     let type_id = decode_type_id(&binary_bits);
     
     if type_id == 4 {
-        let packet = Packet {
-            version: version,
-            binary_bits: binary_bits.clone(),
-            type_id: type_id,
-            literal_data: Some(LiteralData { literal: decode_literal(&binary_bits) }),
-            operator_data: None,
-        };
+        let packet = decode_literal_packet(&binary_bits);
         packets.push(packet);
         return packets
     } 
-
-    // let length_type_id = decode_length_type_id(&binary_bits);
-    // if length_type_id == 0 {
-    //     let length_in_bits = decode_subpacket_bit_length(&binary_bits);
-    //     let packets = build_packets(&binary_bits, length_in_bits);
-    //     for packet in packets {
-    //         sum_version += decode_p1(&packet);
-    //     }
-    // } else {
-    //     let num_subpackets = decode_num_subpackets(&binary_bits);
-    //     let packets = build_n_packets(&binary_bits, num_subpackets);
-    //     for packet in packets {
-    //         sum_version += decode_p1(&packet);
-    //     }
-    // }
+    let packet = decode_operator_packet(&binary_bits);
+    packets.push(packet);
     return packets;
+}
+
+fn decode_literal_packet(binary_bits: &str) -> Packet {
+    let version = decode_version(&binary_bits);
+    let type_id = decode_type_id(&binary_bits);
+
+    let packet = Packet {
+        version: version,
+        binary_bits: binary_bits.to_string(),
+        type_id: type_id,
+        literal_data: Some(LiteralData { literal: decode_literal(&binary_bits) }),
+        operator_data: None,
+    };
+    return packet
+}
+
+fn decode_operator_packet(binary_bits: &str) -> Packet {
+    let version = decode_version(&binary_bits);
+    let type_id = decode_type_id(&binary_bits);
+    let length_type_id = decode_length_type_id(&binary_bits);
+    let length_in_bits = if length_type_id == 0 {
+        decode_subpacket_bit_length(&binary_bits)
+    } else {
+        decode_num_subpackets(&binary_bits)
+    };
+    let mut packet = Packet {
+        version: version,
+        binary_bits: binary_bits.to_string(),
+        type_id: type_id,
+        literal_data: None,
+        operator_data: None,
+    };
+    let mut operator_data = OperatorData {
+        length_type: LengthType {
+            type_id: length_type_id,
+            length: length_in_bits,
+        },
+        // TODO: Find subpackets of operator data
+        subpackets: Vec::new(),
+    };
+    return packet
 }
 
 fn build_packets(binary_bits: &str, size: u32) -> Vec<String> {
@@ -216,12 +238,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_decode_p1() {
+    fn test_decode_p1_literal_packet() {
         let packets = decode_p1("D2FE28");
         let packet = &packets[0];
         assert_eq!(6, packet.version);
         assert_eq!(4, packet.type_id);
         assert_eq!(Some(LiteralData { literal: 2021 }), packet.literal_data);
+        assert_eq!(None, packet.operator_data)
+    }
+
+    
+    #[test]
+    fn test_decode_p1_operator_packet() {
+        let packets = decode_p1("38006F45291200");
+        let packet = &packets[0];
+        assert_eq!(1, packet.version);
+        assert_eq!(6, packet.type_id);
+        assert_eq!(None, packet.literal_data);
+        let subpackets: Vec<Packet> = vec![
+            decode_literal_packet("11010001010"),
+            decode_literal_packet("0101001000100100"),
+        ];
+        let operator_data = OperatorData {
+            length_type: LengthType {
+                type_id: 0,
+                length: 27,
+            },
+            subpackets: subpackets
+        };
+        assert_eq!(Some(operator_data), packet.operator_data);
+
     }
 
     #[test]
