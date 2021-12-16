@@ -2,39 +2,70 @@ fn main() {
     println!("Hello, world!");
 }
 
-fn decode_p1(input: &str) -> u32 {
-    let mut sum_version = 0;
+#[derive(Debug)]
+struct Packet {
+    version: u32,
+    binary_bits: String,
+    type_id: u32,
+    literal_data: Option<LiteralData>,
+    operator_data: Option<OperatorData>,
+}
+
+#[derive(Debug, PartialEq)]
+struct LiteralData {
+    literal: u32
+}
+
+#[derive(Debug)]
+struct OperatorData {
+    length_type: LengthType,
+    packets: Vec<Packet>
+}
+
+#[derive(Debug)]
+struct LengthType {
+    length_type_id: u32,
+    length: u32,
+}
+
+fn decode_p1(input: &str) -> Vec<Packet> {
+    let mut packets = Vec::new();
     let binary_bits = convert_hex_to_binary(input);
     let version = decode_version(&binary_bits);
-    sum_version += version;
 
     let type_id = decode_type_id(&binary_bits);
     
     if type_id == 4 {
-        return sum_version
+        let packet = Packet {
+            version: version,
+            binary_bits: binary_bits.clone(),
+            type_id: type_id,
+            literal_data: Some(LiteralData { literal: decode_literal(&binary_bits) }),
+            operator_data: None,
+        };
+        packets.push(packet);
+        return packets
     } 
 
-    let length_type_id = decode_length_type_id(&binary_bits);
-    if length_type_id == 0 {
-        let length_in_bits = decode_subpacket_bit_length(&binary_bits);
-        let packets = build_packets(&binary_bits, length_in_bits);
-        for packet in packets {
-            sum_version += decode_p1(&packet);
-        }
-    } else {
-        let num_subpackets = decode_num_subpackets(&binary_bits);
-        let packets = build_n_packets(&binary_bits, num_subpackets);
-        for packet in packets {
-            sum_version += decode_p1(&packet);
-        }
-    }
-    return sum_version;
-}
-fn build_n_packets(binary_bits: &str, n: u32) -> Vec<String> {
-    build_packets(binary_bits, binary_bits[8..].len() as u32)[0..n as usize].to_vec()
+    // let length_type_id = decode_length_type_id(&binary_bits);
+    // if length_type_id == 0 {
+    //     let length_in_bits = decode_subpacket_bit_length(&binary_bits);
+    //     let packets = build_packets(&binary_bits, length_in_bits);
+    //     for packet in packets {
+    //         sum_version += decode_p1(&packet);
+    //     }
+    // } else {
+    //     let num_subpackets = decode_num_subpackets(&binary_bits);
+    //     let packets = build_n_packets(&binary_bits, num_subpackets);
+    //     for packet in packets {
+    //         sum_version += decode_p1(&packet);
+    //     }
+    // }
+    return packets;
 }
 
 fn build_packets(binary_bits: &str, size: u32) -> Vec<String> {
+    // TODO: Redo this using packet struct
     let mut packets: Vec<String> = Vec::new();
     let mut curr_packet = String::new();
     let mut curr_packet_version = 0;
@@ -43,7 +74,6 @@ fn build_packets(binary_bits: &str, size: u32) -> Vec<String> {
     let mut found_packet_at = 0;
     let mut binary_bits = binary_bits;
     while i < size {
-        println!("{}", i);
         let c = binary_bits.chars().nth(i as usize).unwrap();
         if curr_packet.len() == 3 {
             curr_packet_version = decode_version(&curr_packet);
@@ -58,16 +88,15 @@ fn build_packets(binary_bits: &str, size: u32) -> Vec<String> {
                 curr_packet.push_str(&literals.join(""));
                 i += bits_moved as u32;
                 found_packet_at = i + 1;
-                println!("pushing curr packet: {}", curr_packet);
                 packets.push(curr_packet.clone());
                 curr_packet.clear();
                 curr_packet_version = 0;
                 curr_packet_type_id = 0;
             } else {
+                
             }
         } else {
             curr_packet.push(c);
-            println!("curr packet: {}", curr_packet);
         }
         i += 1;
     }
@@ -188,8 +217,11 @@ mod tests {
 
     #[test]
     fn test_decode_p1() {
-        let input = decode_p1("38006F45291200");
-        assert_eq!(input, 16);
+        let packets = decode_p1("D2FE28");
+        let packet = &packets[0];
+        assert_eq!(6, packet.version);
+        assert_eq!(4, packet.type_id);
+        assert_eq!(Some(LiteralData { literal: 2021 }), packet.literal_data);
     }
 
     #[test]
