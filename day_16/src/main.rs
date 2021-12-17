@@ -1,5 +1,8 @@
 fn main() {
-    println!("Hello, world!");
+    let p1_input = "E20D79005573F71DA0054E48527EF97D3004653BB1FC006867A8B1371AC49C801039171941340066E6B99A6A58B8110088BA008CE6F7893D4E6F7893DCDCFDB9D6CBC4026FE8026200DC7D84B1C00010A89507E3CCEE37B592014D3C01491B6697A83CB4F59E5E7FFA5CC66D4BC6F05D3004E6BB742B004E7E6B3375A46CF91D8C027911797589E17920F4009BE72DA8D2E4523DCEE86A8018C4AD3C7F2D2D02C5B9FF53366E3004658DB0012A963891D168801D08480485B005C0010A883116308002171AA24C679E0394EB898023331E60AB401294D98CA6CD8C01D9B349E0A99363003E655D40289CBDBB2F55D25E53ECAF14D9ABBB4CC726F038C011B0044401987D0BE0C00021B04E2546499DE824C015B004A7755B570013F2DD8627C65C02186F2996E9CCD04E5718C5CBCC016B004A4F61B27B0D9B8633F9344D57B0C1D3805537ADFA21F231C6EC9F3D3089FF7CD25E5941200C96801F191C77091238EE13A704A7CCC802B3B00567F192296259ABD9C400282915B9F6E98879823046C0010C626C966A19351EE27DE86C8E6968F2BE3D2008EE540FC01196989CD9410055725480D60025737BA1547D700727B9A89B444971830070401F8D70BA3B8803F16A3FC2D00043621C3B8A733C8BD880212BCDEE9D34929164D5CB08032594E5E1D25C0055E5B771E966783240220CD19E802E200F4588450BC401A8FB14E0A1805B36F3243B2833247536B70BDC00A60348880C7730039400B402A91009F650028C00E2020918077610021C00C1002D80512601188803B4000C148025010036727EE5AD6B445CC011E00B825E14F4BBF5F97853D2EFD6256F8FFE9F3B001420C01A88915E259002191EE2F4392004323E44A8B4C0069CEF34D304C001AB94379D149BD904507004A6D466B618402477802E200D47383719C0010F8A507A294CC9C90024A967C9995EE2933BA840";
+    let p1_packets = decode_p1(p1_input);
+    let p1_result = sum_version_of_packets(&p1_packets);
+    println!("Part 1: {}", p1_result);
 }
 
 #[derive(Debug, PartialEq)]
@@ -28,13 +31,29 @@ struct LengthType {
     length: u32,
 }
 
-fn decode_p1(input: &str) -> Vec<Packet> {
-    let mut packets = Vec::new();
-    let binary_bits = convert_hex_to_binary(input);
-    let version = decode_version(&binary_bits);
+fn sum_version_of_packets(packets: &Vec<Packet>) -> u32 {
+    let mut sum = 0;
+    for packet in packets {
+        sum += packet.version;
+        if let Some(operator_data) = &packet.operator_data {
+            sum += sum_version_of_packets(&packet.operator_data.as_ref().unwrap().subpackets);
+        }
+    }
+    sum
+}
 
+fn decode_p1(input: &str) -> Vec<Packet> {
+    let binary_bits = convert_hex_to_binary(input);
+    decode_p1_from_binary(&binary_bits)
+}
+
+fn decode_p1_from_binary(binary_bits: &str) -> Vec<Packet> {
+    let mut packets = Vec::new();
+    if binary_bits.len() < 3 {
+        return packets;
+    }
+    let version = decode_version(&binary_bits);
     let type_id = decode_type_id(&binary_bits);
-    
     if type_id == 4 {
         let packet = decode_literal_packet(&binary_bits);
         packets.push(packet);
@@ -48,12 +67,12 @@ fn decode_p1(input: &str) -> Vec<Packet> {
 fn decode_literal_packet(binary_bits: &str) -> Packet {
     let version = decode_version(&binary_bits);
     let type_id = decode_type_id(&binary_bits);
-
+    let literal_tuple = decode_literal(&binary_bits);
     let packet = Packet {
         version: version,
-        binary_bits: binary_bits.to_string(),
+        binary_bits: literal_tuple.1,
         type_id: type_id,
-        literal_data: Some(LiteralData { literal: decode_literal(&binary_bits) }),
+        literal_data: Some(LiteralData { literal: literal_tuple.0 }),
         operator_data: None,
     };
     return packet
@@ -80,48 +99,58 @@ fn decode_operator_packet(binary_bits: &str) -> Packet {
             type_id: length_type_id,
             length: length_in_bits,
         },
-        // TODO: Find subpackets of operator data
         subpackets: Vec::new(),
     };
+    let subpackets = decode_operator_subpackets(&binary_bits, &operator_data);
+    operator_data.subpackets = subpackets;
+    packet.operator_data = Some(operator_data);
     return packet
 }
 
-fn build_packets(binary_bits: &str, size: u32) -> Vec<String> {
-    // TODO: Redo this using packet struct
-    let mut packets: Vec<String> = Vec::new();
-    let mut curr_packet = String::new();
-    let mut curr_packet_version = 0;
-    let mut curr_packet_type_id = 0;
-    let mut i = 0;
-    let mut found_packet_at = 0;
-    let mut binary_bits = binary_bits;
-    while i < size {
-        let c = binary_bits.chars().nth(i as usize).unwrap();
-        if curr_packet.len() == 3 {
-            curr_packet_version = decode_version(&curr_packet);
-        } else if curr_packet.len() == 6 {
-            curr_packet_type_id = decode_type_id(&curr_packet);
-        }
+fn decode_operator_subpackets(binary_bits: &str, operator_data: &OperatorData) -> Vec<Packet> {
+    let mut packets = Vec::new();
+    let subpackets = if operator_data.length_type.type_id == 0 {
+        decode_subpackets_by_bit_length(binary_bits, operator_data.length_type.length)
+    } else {
+        decode_subpackets_by_num_packets(binary_bits, operator_data.length_type.length)
+    };
+    packets.extend(subpackets);
+    return packets
+}
 
-        if curr_packet.len() == 6 {
-            if curr_packet_type_id == 4 {
-                let literals = parse_literals(&binary_bits[found_packet_at as usize..]);
-                let bits_moved = literals.join("").len() - 1;
-                curr_packet.push_str(&literals.join(""));
-                i += bits_moved as u32;
-                found_packet_at = i + 1;
-                packets.push(curr_packet.clone());
-                curr_packet.clear();
-                curr_packet_version = 0;
-                curr_packet_type_id = 0;
-            } else {
-                
-            }
-        } else {
-            curr_packet.push(c);
-        }
-        i += 1;
+fn decode_subpackets_by_bit_length(binary_bits: &str, length: u32) -> Vec<Packet> {
+    let packet_bits_starting = 22 as usize;
+    let packet_bits_ending = packet_bits_starting + length as usize;
+    let mut packet_bits = binary_bits[packet_bits_starting..packet_bits_ending].to_string();
+    let mut packets: Vec<Packet> = Vec::new();
+    let mut tmp_packets: Vec<Packet> = Vec::new();
+    let mut checked_bits = 0;
+    while checked_bits < length {
+        tmp_packets = decode_p1_from_binary(&packet_bits);
+        let sum_packet_bits = tmp_packets.iter().fold(0, |acc, packet| acc + packet.binary_bits.len());
+        packets.extend(tmp_packets);
+        checked_bits += sum_packet_bits as u32;
+        packet_bits = packet_bits[sum_packet_bits..].to_string();
     }
+
+    return packets
+}
+
+fn decode_subpackets_by_num_packets(binary_bits: &str, length: u32) -> Vec<Packet> {
+    let packet_bits_starting = 18 as usize;
+    let mut packet_bits = binary_bits[packet_bits_starting..].to_string();
+    // 01010000001 10010000010 0011000001100000
+    // AAAAAAAAAAA BBBBBBBBBBB CCCCCCCCCCC
+    let mut packets = Vec::new();
+    let mut checked_bits = 0;
+    while packets.len() < length as usize && packet_bits.len() > 0 {
+        let packet = decode_p1_from_binary(&packet_bits);
+        let sum_packet_bits = packet.iter().fold(0, |acc, packet| acc + packet.binary_bits.len());
+        packets.extend(packet);
+        checked_bits += sum_packet_bits as u32;
+        packet_bits = packet_bits[sum_packet_bits..].to_string();
+    }
+
     return packets
 }
 
@@ -164,6 +193,7 @@ fn convert_binary_to_decimal(input: &str) -> u32 {
 }
 
 fn decode_version(input: &str) -> u32 {
+    println!("Decoding version {}", input);
     let version_bits = input[0..3].to_string();
     convert_binary_to_decimal(&version_bits)
 }
@@ -173,31 +203,29 @@ fn decode_type_id(input: &str) -> u32 {
     convert_binary_to_decimal(&type_id_bits)
 }
 
-fn decode_literal(input: &str) -> u32 {
+fn decode_literal(input: &str) -> (u32, String) {
     let literal_bits = input[6..].to_string();
     // split literal_bits into chunks of 5 bits
-    let mut chunks = Vec::new();
+    let mut chunks: Vec<String> = Vec::new();
     for i in 0..(literal_bits.len() / 5) {
         let start = i * 5;
         let end = start + 5;
-        chunks.push(literal_bits[start..end].to_string());
-    }
-
-    let mut literal_binary = String::new();
-    for c in chunks {
-        let binary = c[1..].to_string();
-        literal_binary.push_str(&binary);
-        let first_char = c[0..1].parse::<u32>().unwrap();
-        if first_char == 0 {
+        let chunk = literal_bits[start..end].to_string();
+        chunks.push(chunk.clone());
+        if chunk[0..1].parse::<u32>().unwrap() == 0 {
             break;
         }
     }
-    convert_binary_to_decimal(&literal_binary)
+    let mut literal_binary = String::new();
+    for c in chunks.clone() {
+        let binary = c[1..].to_string();
+        literal_binary.push_str(&binary);
+    }
+    let packet_bits = format!("{}{}", input[..6].to_string(), chunks.clone().join(""));
+    (convert_binary_to_decimal(&literal_binary), packet_bits)
 }
 
-
 fn parse_literals(input: &str) -> Vec<String> {
-    println!("parse_literals: {}", input);
     let literal_bits = input[6..].to_string();
     // split literal_bits into chunks of 5 bits
     let mut chunks = Vec::new();
@@ -247,7 +275,20 @@ mod tests {
         assert_eq!(None, packet.operator_data)
     }
 
-    
+    #[test]
+    fn test_decode_subpackets_bit_length() {
+        let packets = decode_subpackets_by_bit_length("00111000000000000110111101000101001010010001001000000000", 27);
+        assert_eq!(packets.iter().map(|p| p.binary_bits.clone()).collect::<Vec<String>>(),
+                   vec!["11010001010", "0101001000100100"]);
+    }
+
+    #[test]
+    fn test_decode_subpackets_by_num_packets() {
+        let packets = decode_subpackets_by_num_packets("11101110000000001101010000001100100000100011000001100000", 3);
+        assert_eq!(packets.iter().map(|p| p.binary_bits.clone()).collect::<Vec<String>>(),
+                   vec!["01010000001", "10010000010", "00110000011"]);
+    }
+
     #[test]
     fn test_decode_p1_operator_packet() {
         let packets = decode_p1("38006F45291200");
@@ -263,6 +304,29 @@ mod tests {
             length_type: LengthType {
                 type_id: 0,
                 length: 27,
+            },
+            subpackets: subpackets
+        };
+        assert_eq!(Some(operator_data), packet.operator_data);
+
+    }
+
+    #[test]
+    fn test_decode_p1_operator_packet2() {
+        let packets = decode_p1("EE00D40C823060");
+        let packet = &packets[0];
+        assert_eq!(7, packet.version);
+        assert_eq!(3, packet.type_id);
+        assert_eq!(None, packet.literal_data);
+        let subpackets: Vec<Packet> = vec![
+            decode_literal_packet("01010000001"),
+            decode_literal_packet("10010000010"),
+            decode_literal_packet("00110000011"),
+        ];
+        let operator_data = OperatorData {
+            length_type: LengthType {
+                type_id: 1,
+                length: 3,
             },
             subpackets: subpackets
         };
@@ -296,12 +360,13 @@ mod tests {
 
     #[test]
     fn test_decode_literal() {
-        let input = decode_literal("110100010100101001000100100");
-        assert_eq!(input, 10);
+        let input = decode_literal("11010001010");
+        assert_eq!(input.0, 10);
+        assert_eq!(input.1, "11010001010");
     }
 
     #[test]
-    fn test_parse_literas() {
+    fn test_parse_literals() {
         let input = parse_literals("110100010100101001000100100");
         assert_eq!(input, vec!["01010".to_string()]);
     }
@@ -325,8 +390,17 @@ mod tests {
     }
 
     #[test]
-    fn test_build_packets() {
-        let input = build_packets("1101000101001010010001001000000000", 27);
-        assert_eq!(input, vec!["11010001010", "0101001000100100"]);
+    fn test_sum_version_of_packets() {
+        let packets = decode_p1("8A004A801A8002F478");
+        let sum = sum_version_of_packets(&packets);
+        assert_eq!(sum, 16);
+    }
+
+    #[test]
+    fn test_sum_version_of_packets2() {
+        let packets = decode_p1("620080001611562C8802118E34");
+        println!("Packets {:?}", packets);
+        let sum = sum_version_of_packets(&packets);
+        assert_eq!(sum, 12);
     }
 }
