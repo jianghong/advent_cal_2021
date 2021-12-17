@@ -1,8 +1,12 @@
 fn main() {
-    let p1_input = "E20D79005573F71DA0054E48527EF97D3004653BB1FC006867A8B1371AC49C801039171941340066E6B99A6A58B8110088BA008CE6F7893D4E6F7893DCDCFDB9D6CBC4026FE8026200DC7D84B1C00010A89507E3CCEE37B592014D3C01491B6697A83CB4F59E5E7FFA5CC66D4BC6F05D3004E6BB742B004E7E6B3375A46CF91D8C027911797589E17920F4009BE72DA8D2E4523DCEE86A8018C4AD3C7F2D2D02C5B9FF53366E3004658DB0012A963891D168801D08480485B005C0010A883116308002171AA24C679E0394EB898023331E60AB401294D98CA6CD8C01D9B349E0A99363003E655D40289CBDBB2F55D25E53ECAF14D9ABBB4CC726F038C011B0044401987D0BE0C00021B04E2546499DE824C015B004A7755B570013F2DD8627C65C02186F2996E9CCD04E5718C5CBCC016B004A4F61B27B0D9B8633F9344D57B0C1D3805537ADFA21F231C6EC9F3D3089FF7CD25E5941200C96801F191C77091238EE13A704A7CCC802B3B00567F192296259ABD9C400282915B9F6E98879823046C0010C626C966A19351EE27DE86C8E6968F2BE3D2008EE540FC01196989CD9410055725480D60025737BA1547D700727B9A89B444971830070401F8D70BA3B8803F16A3FC2D00043621C3B8A733C8BD880212BCDEE9D34929164D5CB08032594E5E1D25C0055E5B771E966783240220CD19E802E200F4588450BC401A8FB14E0A1805B36F3243B2833247536B70BDC00A60348880C7730039400B402A91009F650028C00E2020918077610021C00C1002D80512601188803B4000C148025010036727EE5AD6B445CC011E00B825E14F4BBF5F97853D2EFD6256F8FFE9F3B001420C01A88915E259002191EE2F4392004323E44A8B4C0069CEF34D304C001AB94379D149BD904507004A6D466B618402477802E200D47383719C0010F8A507A294CC9C90024A967C9995EE2933BA840";
-    let p1_packets = decode_p1(p1_input);
-    let p1_result = sum_version_of_packets(&p1_packets);
+    let input = "E20D79005573F71DA0054E48527EF97D3004653BB1FC006867A8B1371AC49C801039171941340066E6B99A6A58B8110088BA008CE6F7893D4E6F7893DCDCFDB9D6CBC4026FE8026200DC7D84B1C00010A89507E3CCEE37B592014D3C01491B6697A83CB4F59E5E7FFA5CC66D4BC6F05D3004E6BB742B004E7E6B3375A46CF91D8C027911797589E17920F4009BE72DA8D2E4523DCEE86A8018C4AD3C7F2D2D02C5B9FF53366E3004658DB0012A963891D168801D08480485B005C0010A883116308002171AA24C679E0394EB898023331E60AB401294D98CA6CD8C01D9B349E0A99363003E655D40289CBDBB2F55D25E53ECAF14D9ABBB4CC726F038C011B0044401987D0BE0C00021B04E2546499DE824C015B004A7755B570013F2DD8627C65C02186F2996E9CCD04E5718C5CBCC016B004A4F61B27B0D9B8633F9344D57B0C1D3805537ADFA21F231C6EC9F3D3089FF7CD25E5941200C96801F191C77091238EE13A704A7CCC802B3B00567F192296259ABD9C400282915B9F6E98879823046C0010C626C966A19351EE27DE86C8E6968F2BE3D2008EE540FC01196989CD9410055725480D60025737BA1547D700727B9A89B444971830070401F8D70BA3B8803F16A3FC2D00043621C3B8A733C8BD880212BCDEE9D34929164D5CB08032594E5E1D25C0055E5B771E966783240220CD19E802E200F4588450BC401A8FB14E0A1805B36F3243B2833247536B70BDC00A60348880C7730039400B402A91009F650028C00E2020918077610021C00C1002D80512601188803B4000C148025010036727EE5AD6B445CC011E00B825E14F4BBF5F97853D2EFD6256F8FFE9F3B001420C01A88915E259002191EE2F4392004323E44A8B4C0069CEF34D304C001AB94379D149BD904507004A6D466B618402477802E200D47383719C0010F8A507A294CC9C90024A967C9995EE2933BA840";
+    let packets = decode_p1(input);
+
+    let p1_result = sum_version_of_packets(&packets);
     println!("Part 1: {}", p1_result);
+
+    let p2_result = execute(&packets[0]);
+    println!("Part 2: {}", p2_result);
 }
 
 #[derive(Debug, PartialEq)]
@@ -40,6 +44,153 @@ fn sum_version_of_packets(packets: &Vec<Packet>) -> u64 {
         }
     }
     sum
+}
+
+fn decode_and_execute_p2(input: &str) -> u64 {
+    let packets = decode_p1(input);
+    let result = execute(&packets[0]);
+    result
+}
+
+fn execute(packet: &Packet) -> u64 {
+    // switch on packet type
+    match packet.type_id {
+        0 => {
+            execute_sum_packet(packet)
+        },
+        1 => {
+            execute_product_packet(packet)
+        },
+        2 => {
+            execute_min_packet(packet)
+        },
+        3 => {
+            execute_max_packet(packet)
+        },
+        4 => {
+            packet.literal_data.as_ref().unwrap().literal
+        },
+        5 => {
+            execute_cmp_packet(packet, CmpOrd::GT)
+        },
+        6 => {
+            execute_cmp_packet(packet, CmpOrd::LT)
+        },
+        7 => {
+            execute_cmp_packet(packet, CmpOrd::EQ)
+        },
+        _ => {
+            panic!("Unknown packet type: {}", packet.type_id);
+        }
+    }
+}
+
+fn execute_sum_packet(packet: &Packet) -> u64 {
+    let mut sum = 0;
+    if let Some(literal_data) = &packet.literal_data {
+        sum += literal_data.literal;
+    } else if let Some(operator_data) = &packet.operator_data {
+        for subpacket in &operator_data.subpackets {
+            sum += execute(&subpacket);
+        }
+    }
+    sum
+}
+
+fn execute_product_packet(packet: &Packet) -> u64 {
+    let mut product = 1;
+    if let Some(literal_data) = &packet.literal_data {
+        product *= literal_data.literal;
+    } else if let Some(operator_data) = &packet.operator_data {
+        for subpacket in &operator_data.subpackets {
+            product *= execute(&subpacket);
+        }
+    }
+    product
+}
+
+fn execute_min_packet(packet: &Packet) -> u64 {
+    let mut min = std::u64::MAX;
+    if let Some(literal_data) = &packet.literal_data {
+        if literal_data.literal < min {
+            min = literal_data.literal;
+        }
+    } else if let Some(operator_data) = &packet.operator_data {
+        for subpacket in &operator_data.subpackets {
+            min = min.min(execute(&subpacket));
+        }
+    }
+    min
+}
+
+fn execute_max_packet(packet: &Packet) -> u64 {
+    let mut max = 0;
+    if let Some(literal_data) = &packet.literal_data {
+        if literal_data.literal > max {
+            max = literal_data.literal;
+        }
+    } else if let Some(operator_data) = &packet.operator_data {
+        for subpacket in &operator_data.subpackets {
+            max = max.max(execute(&subpacket));
+        }
+    }
+    max
+}
+enum CmpOrd {
+    GT,
+    LT,
+    EQ
+}
+
+
+fn execute_cmp_packet(packet: &Packet, ord: CmpOrd) -> u64 {
+    if packet.operator_data.is_none() {
+        panic!("GT operator data is missing");
+    }
+    let operator_data = packet.operator_data.as_ref().unwrap();
+
+    cmp_packets(&operator_data.subpackets[0], &operator_data.subpackets[1], ord)
+}
+
+fn cmp_packets(a: &Packet, b: &Packet, ord: CmpOrd) -> u64 {
+    let a_literal = if let Some(operator_data) = &a.operator_data {
+        execute(a)
+    } else if let Some(literal_data) = &a.literal_data {
+        literal_data.literal
+    } else {
+        panic!("Missing packet data");
+    };
+    let b_literal = if let Some(operator_data) = &b.operator_data {
+        execute(b)
+    } else if let Some(literal_data) = &b.literal_data {
+        literal_data.literal
+    } else {
+        panic!("Missing packet data");
+    };
+
+    match ord {
+        CmpOrd::GT => {
+            if a_literal > b_literal {
+                1
+            } else {
+                0
+            }
+        },
+        CmpOrd::LT => {
+            if a_literal < b_literal {
+                1
+            } else {
+                0
+            }
+        },
+        CmpOrd::EQ => {
+            if a_literal == b_literal {
+                1
+            } else {
+                0
+            }
+        }
+    }
 }
 
 fn decode_p1(input: &str) -> Vec<Packet> {
@@ -453,4 +604,45 @@ mod tests {
         assert_eq!(subpackets.len(), 2);
     }
 
+    #[test]
+    fn test_decode_and_execute_sum_packet() {
+        let result = decode_and_execute_p2("C200B40A82");
+        assert_eq!(result, 3);
+    }
+
+    #[test]
+    fn test_decode_and_execute_product_packet() {
+        let result = decode_and_execute_p2("04005AC33890");
+        assert_eq!(result, 54);
+    }
+    
+    #[test]
+    fn test_decode_and_execute_min_packet() {
+        let result = decode_and_execute_p2("880086C3E88112");
+        assert_eq!(result, 7);
+    }
+        
+    #[test]
+    fn test_decode_and_execute_max_packet() {
+        let result = decode_and_execute_p2("CE00C43D881120");
+        assert_eq!(result, 9);
+    }
+
+    #[test]
+    fn test_decode_and_execute_gt_packet() {
+        let result = decode_and_execute_p2("F600BC2D8F");
+        assert_eq!(result, 0); 
+    }
+
+    #[test]
+    fn test_decode_and_execute_lt_packet() {
+        let result = decode_and_execute_p2("D8005AC2A8F0");
+        assert_eq!(result, 1); 
+    }
+
+    #[test]
+    fn test_decode_and_execute_eq_packet() {
+        let result = decode_and_execute_p2("9C0141080250320F1802104A08");
+        assert_eq!(result, 1); 
+    }
 }
