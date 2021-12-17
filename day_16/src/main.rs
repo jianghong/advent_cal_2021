@@ -36,7 +36,7 @@ fn sum_version_of_packets(packets: &Vec<Packet>) -> u32 {
     for packet in packets {
         sum += packet.version;
         if let Some(operator_data) = &packet.operator_data {
-            sum += sum_version_of_packets(&packet.operator_data.as_ref().unwrap().subpackets);
+            sum += sum_version_of_packets(&operator_data.subpackets);
         }
     }
     sum
@@ -44,29 +44,30 @@ fn sum_version_of_packets(packets: &Vec<Packet>) -> u32 {
 
 fn decode_p1(input: &str) -> Vec<Packet> {
     let binary_bits = convert_hex_to_binary(input);
+    println!("Decoding from hex to binary: {}", binary_bits);
     decode_p1_from_binary(&binary_bits)
 }
 
 fn decode_p1_from_binary(binary_bits: &str) -> Vec<Packet> {
     let mut packets = Vec::new();
-    if binary_bits.len() < 3 {
-        return packets;
-    }
+    println!("Decoding packets from binary: {}", binary_bits);
     let version = decode_version(&binary_bits);
     let type_id = decode_type_id(&binary_bits);
-    if type_id == 4 {
-        let packet = decode_literal_packet(&binary_bits);
-        packets.push(packet);
-        return packets
-    } 
-    let packet = decode_operator_packet(&binary_bits);
+    let packet = if type_id == 4 {
+        decode_literal_packet(&binary_bits)
+    } else {
+        decode_operator_packet(&binary_bits)
+    };
+    println!("Decoded packet: {:?}", packet);
     packets.push(packet);
     return packets;
 }
 
 fn decode_literal_packet(binary_bits: &str) -> Packet {
+    println!("Decoding literal packet {}", binary_bits);
     let version = decode_version(&binary_bits);
     let type_id = decode_type_id(&binary_bits);
+    println!("literal version: {}, type_id: {}", version, type_id);
     let literal_tuple = decode_literal(&binary_bits);
     let packet = Packet {
         version: version,
@@ -87,13 +88,6 @@ fn decode_operator_packet(binary_bits: &str) -> Packet {
     } else {
         decode_num_subpackets(&binary_bits)
     };
-    let mut packet = Packet {
-        version: version,
-        binary_bits: binary_bits.to_string(),
-        type_id: type_id,
-        literal_data: None,
-        operator_data: None,
-    };
     let mut operator_data = OperatorData {
         length_type: LengthType {
             type_id: length_type_id,
@@ -102,13 +96,30 @@ fn decode_operator_packet(binary_bits: &str) -> Packet {
         subpackets: Vec::new(),
     };
     let subpackets = decode_operator_subpackets(&binary_bits, &operator_data);
+    let packet_bits = combine_bits_in_packets(&subpackets);
     operator_data.subpackets = subpackets;
-    packet.operator_data = Some(operator_data);
+    let packet = Packet {
+        version: version,
+        binary_bits: packet_bits,
+        type_id: type_id,
+        literal_data: None,
+        operator_data: Some(operator_data),
+    };
     return packet
+}
+
+// combine bits in packets
+fn combine_bits_in_packets(packets: &Vec<Packet>) -> String {
+    let mut combined_bits = String::new();
+    for packet in packets {
+        combined_bits.push_str(&packet.binary_bits);
+    }
+    return combined_bits
 }
 
 fn decode_operator_subpackets(binary_bits: &str, operator_data: &OperatorData) -> Vec<Packet> {
     let mut packets = Vec::new();
+    println!("Decoding operator subpackets {:?}", operator_data);
     let subpackets = if operator_data.length_type.type_id == 0 {
         decode_subpackets_by_bit_length(binary_bits, operator_data.length_type.length)
     } else {
@@ -136,19 +147,30 @@ fn decode_subpackets_by_bit_length(binary_bits: &str, length: u32) -> Vec<Packet
     return packets
 }
 
+fn remove_leading_zeros(binary_bits: &str) -> String {
+    let mut binary_bits = binary_bits.to_string();
+    while binary_bits.starts_with("0") {
+        binary_bits = binary_bits[1..].to_string();
+    }
+    return binary_bits
+}
+
 fn decode_subpackets_by_num_packets(binary_bits: &str, length: u32) -> Vec<Packet> {
+    println!("Decoding subpackets by {} packets", length);
     let packet_bits_starting = 18 as usize;
     let mut packet_bits = binary_bits[packet_bits_starting..].to_string();
-    // 01010000001 10010000010 0011000001100000
-    // AAAAAAAAAAA BBBBBBBBBBB CCCCCCCCCCC
+    println!("Packet bits: {}", packet_bits);
     let mut packets = Vec::new();
     let mut checked_bits = 0;
-    while packets.len() < length as usize && packet_bits.len() > 0 {
+    while packets.len() < length as usize {
         let packet = decode_p1_from_binary(&packet_bits);
-        let sum_packet_bits = packet.iter().fold(0, |acc, packet| acc + packet.binary_bits.len());
+        println!("Packet: {:?}", packet);
+        let sum_packet_bits = combine_bits_in_packets(&packet).len();
         packets.extend(packet);
-        checked_bits += sum_packet_bits as u32;
+        checked_bits += sum_packet_bits;
         packet_bits = packet_bits[sum_packet_bits..].to_string();
+        println!("sum_packet_bits: {}, checked_bits: {}", sum_packet_bits, checked_bits);
+        println!("Packet bits: {}", packet_bits);
     }
 
     return packets
@@ -193,7 +215,6 @@ fn convert_binary_to_decimal(input: &str) -> u32 {
 }
 
 fn decode_version(input: &str) -> u32 {
-    println!("Decoding version {}", input);
     let version_bits = input[0..3].to_string();
     convert_binary_to_decimal(&version_bits)
 }
@@ -399,8 +420,24 @@ mod tests {
     #[test]
     fn test_sum_version_of_packets2() {
         let packets = decode_p1("620080001611562C8802118E34");
+        assert_eq!(packets[0].operator_data.as_ref().unwrap().subpackets.len(), 2);
         println!("Packets {:?}", packets);
         let sum = sum_version_of_packets(&packets);
         assert_eq!(sum, 12);
     }
+    
+    #[test]
+    fn test_subpackets_by_num_packets2() {
+        // 011 000 1 00000000010 000 000 0 000000000010110 000 100 01010 101 100 01011 001 000 1 00000000010 000 100 01100 011 100 01101 00
+        // VVV TTT I LLLLLLLLLLL VVV TTT I LLLLLLLLLLLLLLL VVV TTT AAAAA VVV TTT AAAAA VVV TTT I LLLLLLLLLLL VVV TTT AAAAA VVV TTT AAAAA            
+        // 3   0   1 2             0 0   0 22              0   4   10    5   4   11    1   0   1 2           0   4   12    3   4   13   
+        //[                      [ first op packet        [literal      ][literal     ]]
+        // 620080001611562C8802118E34 represents an operator packet (version 3) 
+        // which contains two sub-packets; each sub-packet is an operator packet that contains two literal values. 
+        // This packet has a version sum of 12.
+        //101 100 0 01000101010110001011001000100000000010000100011000111000110100
+        let subpackets = decode_subpackets_by_num_packets("01100010000000001000000000000000000101100001000101010110001011001000100000000010000100011000111000110100", 2);
+        assert_eq!(subpackets.len(), 2);
+    }
+
 }
