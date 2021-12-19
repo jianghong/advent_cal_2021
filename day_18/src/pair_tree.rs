@@ -1,14 +1,14 @@
 use core::str::Chars;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct TreeNode<T> {
-    literal: Option<T>,
-    left:  Option<Box<TreeNode<T>>>,
-    right:  Option<Box<TreeNode<T>>>,
+pub struct TreeNode<T> {
+    pub literal: Option<T>,
+    pub left:  Option<Box<TreeNode<T>>>,
+    pub right:  Option<Box<TreeNode<T>>>,
 }
 
 // [[[[1,1],[2,2]],[3,3]],[4,4]]
-fn parse_line_to_tree(line_chars: &mut Chars<'_>) -> TreeNode<u32> {
+pub fn parse_line_to_tree(line_chars: &mut Chars<'_>) -> TreeNode<u32> {
     let mut node = TreeNode {
         literal: None,
         left: None,
@@ -37,7 +37,7 @@ fn parse_line_to_tree(line_chars: &mut Chars<'_>) -> TreeNode<u32> {
     return node;
 }
 
-fn parse_tree_to_line(node: &TreeNode<u32>) -> String {
+pub fn parse_tree_to_line(node: &TreeNode<u32>) -> String {
     let mut line = String::new();
     if node.literal.is_some() {
         line.push_str(&node.literal.unwrap().to_string());
@@ -80,7 +80,7 @@ fn split_literal_into_left_right(node: &mut TreeNode<u32>) {
     }
 }
 
-fn split(tree: &mut TreeNode<u32>) -> bool {
+pub fn split(tree: &mut TreeNode<u32>) -> bool {
     let mut is_split = false;
     if !is_split && tree.left.is_some() {
        is_split = split(tree.left.as_mut().unwrap());
@@ -97,7 +97,7 @@ fn split(tree: &mut TreeNode<u32>) -> bool {
     is_split
 }
 
-fn explode(tree: &mut TreeNode<u32>, depth: u32,target_depth: u32) -> (Option<u32>, Option<u32>, bool) {
+pub fn explode(tree: &mut TreeNode<u32>, depth: u32,target_depth: u32) -> (Option<u32>, Option<u32>, bool) {
     if depth >= target_depth {
         if is_literal_pair(tree) {
             let left = tree.left.take().unwrap();
@@ -129,13 +129,22 @@ fn explode(tree: &mut TreeNode<u32>, depth: u32,target_depth: u32) -> (Option<u3
     return (left_result, right_result, exploded);
 }
 
-fn is_literal_pair(tree:&TreeNode<u32>) -> bool {
+pub fn is_literal_pair(tree:&TreeNode<u32>) -> bool {
     if tree.left.is_some() && tree.left.as_ref().unwrap().literal.is_some() &&
        tree.right.is_some() && tree.right.as_ref().unwrap().literal.is_some() {
         return true;
     }
     return false;
 }
+
+
+pub fn is_pair(tree:&TreeNode<u32>) -> bool {
+    if tree.left.is_some() && tree.right.is_some() {
+        return true;
+    }
+    return false;
+}
+
 
 fn add_literal_to_left_most_node(tree: &mut TreeNode<u32>, val: u32) {
     if tree.literal.is_some() {
