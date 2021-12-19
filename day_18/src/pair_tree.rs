@@ -80,16 +80,21 @@ fn split_literal_into_left_right(node: &mut TreeNode<u32>) {
     }
 }
 
-fn split(tree: &mut TreeNode<u32>) {
-    if tree.left.is_some() {
-       split(tree.left.as_mut().unwrap());
-    } else if let Some(literal) = tree.literal {
-        if literal >= 10 {
-            split_literal_into_left_right(tree);
-        }
-    } else if tree.right.is_some() {
-        split(tree.right.as_mut().unwrap());
+fn split(tree: &mut TreeNode<u32>) -> bool {
+    let mut is_split = false;
+    if !is_split && tree.left.is_some() {
+       is_split = split(tree.left.as_mut().unwrap());
     }
+    if let Some(literal) = tree.literal {
+        if !is_split && literal >= 10 {
+            split_literal_into_left_right(tree);
+            is_split = true;
+        }
+    } 
+    if !is_split && tree.right.is_some() {
+        is_split = split(tree.right.as_mut().unwrap());
+    }
+    is_split
 }
 
 fn explode(tree: &mut TreeNode<u32>, depth: u32,target_depth: u32) -> (Option<u32>, Option<u32>, bool) {
@@ -171,6 +176,9 @@ mod tests {
         split(&mut tree);
         let line = parse_tree_to_line(&tree);
         assert_eq!(line, "[[[[0,7],4],[[7,8],[0,13]]],[1,1]]");
+        split(&mut tree);
+        let line = parse_tree_to_line(&tree);
+        assert_eq!(line, "[[[[0,7],4],[[7,8],[0,[6,7]]]],[1,1]]");
     }
 
     #[test]
