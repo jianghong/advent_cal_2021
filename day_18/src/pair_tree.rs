@@ -59,42 +59,47 @@ fn print_tree(tree: &TreeNode<u32>, depth: u32, is_root: bool, is_left: bool) {
     }
 }
 
-fn explode(tree: &mut TreeNode<u32>, depth: u32, target_depth: u32) {
-    println!("d {}", depth);
-    if depth == target_depth - 1 {
-        println!("reached target depth {}", depth);
-        println!("{:?}", tree);
-        if is_pair(tree.left.as_ref()) {
-            println!("Found candidate to explode at depth {}", depth - 1);
-            // explode left
-            let mut left_pair = tree.left.take().unwrap();
-            left_pair.left.take().unwrap();
-            let left_pair_right = left_pair.right.take().unwrap();
-            left_pair.literal = Some(0);
-            tree.left = Some(left_pair);
-            add_literal_to_left_most_node(tree.right.as_mut().unwrap(), left_pair_right.literal.unwrap());
-        }
+fn explode(tree: &mut TreeNode<u32>, depth: u32,target_depth: u32) -> (Option<u32>, Option<u32>) {
+    // right now this could explode more than once
+    if depth == target_depth {
+        if is_pair(tree) {
+            let left = tree.left.take().unwrap();
+            let right = tree.right.take().unwrap();
+            tree.literal = Some(0);
+            return (left.literal, right.literal);
+        } 
     } else {
+        let mut left_result: Option<u32> = None;
+        let mut right_result: Option<u32> = None;
         if tree.left.is_some() {
-            explode(tree.left.as_mut().unwrap(), depth + 1, target_depth);
+            let result = explode(tree.left.as_mut().unwrap(), depth + 1, target_depth);
+            if result.1.is_some() {
+                add_literal_to_left_most_node(tree.right.as_mut().unwrap(), result.1.unwrap());
+            }
+            left_result = result.0;
         }
         if tree.right.is_some() {
-            explode(tree.right.as_mut().unwrap(), depth + 1, target_depth);
+            let result = explode(tree.right.as_mut().unwrap(), depth + 1, target_depth);
+            if result.0.is_some() {
+                add_literal_to_right_most_node(tree.left.as_mut().unwrap(), result.0.unwrap());
+            }
+            right_result = result.1;
         }
+        return (left_result, right_result);
     }
+    return (None, None);
 }
 
-fn is_pair(tree: Option<&Box<TreeNode<u32>>>) -> bool {
-    if let Some(tree) = tree {
-        if tree.left.is_some() && tree.right.is_some() {
-            return true;
-        }
+fn is_pair(tree:&TreeNode<u32>) -> bool {
+    if tree.left.is_some() && tree.right.is_some() {
+        return true;
     }
     return false;
 }
 
 fn add_literal_to_left_most_node(tree: &mut TreeNode<u32>, val: u32) {
     if tree.literal.is_some() {
+        println!("adding {} to {:?}", val, tree);   
         let mut literal = tree.literal.take().unwrap();
         literal += val;
         tree.literal = Some(literal);
@@ -103,6 +108,22 @@ fn add_literal_to_left_most_node(tree: &mut TreeNode<u32>, val: u32) {
     } else if tree.right.is_some() {
         add_literal_to_left_most_node(&mut tree.right.as_mut().unwrap(), val);
     }
+}
+
+fn add_literal_to_right_most_node(tree: &mut TreeNode<u32>, val: u32) {
+    if tree.literal.is_some() {
+        let mut literal = tree.literal.take().unwrap();
+        literal += val;
+        tree.literal = Some(literal);
+    } else if tree.right.is_some() {
+        add_literal_to_right_most_node(&mut tree.right.as_mut().unwrap(), val);
+    } else if tree.left.is_some() {
+        add_literal_to_right_most_node(&mut tree.left.as_mut().unwrap(), val);
+    }
+}
+
+fn pt(tree: &TreeNode<u32>) {
+    print_tree(tree, 0, true, false);
 }
 
 #[cfg(test)]
@@ -115,7 +136,13 @@ mod tests {
         let mut tree = parse_line_to_tree(&mut lc);
         explode(&mut tree, 0, 4);
         let line = parse_tree_to_line(&tree);
-        assert_eq!(line, "[[[[0,[3,2]],[3,3]],[4,4]],[5,5]]");
+        assert_eq!(line, "[[[[3,0],[5,3]],[4,4]],[5,5]]");
+
+        let mut lc = "[[[[[1,1],[2,2]],[3,3]],[4,4]],[5,5]]".chars();
+        let mut tree = parse_line_to_tree(&mut lc);
+        explode(&mut tree, 0, 4);
+        let line = parse_tree_to_line(&tree);
+        assert_eq!(line, "[[[[3,0],[5,3]],[4,4]],[5,5]]");
     }
 
     #[test]
@@ -127,7 +154,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_literal() {
+    fn test_add_literal_left() {
         let mut tree = TreeNode {
             literal: Some(1),
             left: None,
@@ -166,6 +193,45 @@ mod tests {
     }
 
     #[test]
+    fn test_add_literal_right() {
+        let mut tree = TreeNode {
+            literal: Some(1),
+            left: None,
+            right: None,
+        };
+        add_literal_to_right_most_node(&mut tree, 2);
+        assert_eq!(tree.literal.unwrap(), 3);
+
+        let mut tree = TreeNode {
+            literal: None,
+            left: None,
+            right: Some(Box::new(TreeNode {
+                literal: Some(1),
+                left: None,
+                right: None,
+            })),
+        };
+        add_literal_to_right_most_node(&mut tree, 2);
+        assert_eq!(tree.right.unwrap().literal.unwrap(), 3);
+
+        let mut tree = TreeNode {
+            literal: None,
+            right: None,
+            left: Some(Box::new(TreeNode {
+                literal: None,
+                left: Some(Box::new(TreeNode {
+                    literal: Some(1),
+                    left: None,
+                    right: None,
+                })),
+                right: None,
+            })),
+        };
+        add_literal_to_right_most_node(&mut tree, 2);
+        assert_eq!(tree.left.unwrap().left.unwrap().literal.unwrap(), 3);
+    }
+
+    #[test]
     fn test_parse1() {
         let mut lc = "[[[[[1,1],[2,2]],[3,3]],[4,4]],[5,5]]".chars();
         let tree = parse_line_to_tree(&mut lc);
@@ -188,7 +254,7 @@ mod tests {
                 right: None,
             })),
         };
-        assert_eq!(is_pair(Some(&Box::new(tree))), true);
+        assert_eq!(is_pair(&tree), true);
     }
 
     
@@ -199,6 +265,6 @@ mod tests {
             left: None,
             right: None
         };
-        assert_eq!(!is_pair(Some(&Box::new(tree))), true);
+        assert_eq!(is_pair(&tree), false);
     }
 }

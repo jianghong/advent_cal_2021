@@ -38,6 +38,7 @@ mod tests {
     #[test]
     fn test_add_file() {
         assert_eq!(add_file("src/test1.txt"), "[[[[1,1],[2,2]],[3,3]],[4,4]]");
-        assert_eq!(add_file("src/test2.txt"), "[[[[3,0],[5,3]],[4,4]],[5,5]]");
+        assert_eq!(add_file("src/test2.txt"), "[[[[[1,1],[2,2]],[3,3]],[4,4]],[5,5]]");
+        assert_eq!(add_file("src/test3.txt"), "[[[[[[1,1],[2,2]],[3,3]],[4,4]],[5,5]],[6,6]]");
     }
 }
