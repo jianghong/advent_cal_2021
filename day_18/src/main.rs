@@ -5,7 +5,10 @@ mod pair_tree;
 use pair_tree::*;
 
 fn main() {
-    println!("Hello, world!");
+    let sum = add_file("src/input.txt");
+    let tree = parse_line_to_tree(&mut sum.chars());
+    let mag = magnitude(&tree);
+    println!("Part 1 results {}", mag);
 }
 
 fn add_file(path: &str) -> String {
@@ -63,6 +66,13 @@ fn magnitude(tree: &TreeNode<u32>) -> u32 {
 
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_test_file_6() {
+        let sum = add_file("src/test6.txt");
+        let tree = parse_line_to_tree(&mut sum.chars());
+        assert_eq!(magnitude(&tree), 4140);
+    }
 
     #[test]
     fn test_magnitude() {
