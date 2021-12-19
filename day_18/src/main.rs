@@ -9,6 +9,9 @@ fn main() {
     let tree = parse_line_to_tree(&mut sum.chars());
     let mag = magnitude(&tree);
     println!("Part 1 results {}", mag);
+
+    let result = find_max_magnitude("src/input.txt");
+    println!("Part 2 results {}", result);
 }
 
 fn add_file(path: &str) -> String {
@@ -22,16 +25,7 @@ fn add_file(path: &str) -> String {
         let line = line.unwrap();
         sum = add(&sum, &line);
         let mut tree = parse_line_to_tree(&mut sum.chars());
-        let mut explode_result = true;
-        let mut split_result = true;
-        while explode_result || split_result {
-            // let t = parse_tree_to_line(&tree);
-            // println!("{}", t);
-            explode_result = explode(&mut tree, 0, 4).2;
-            if !explode_result {
-                split_result = split(&mut tree);
-            }
-        }
+        reduce(&mut tree);
         sum = parse_tree_to_line(&tree);
     }
     return sum
@@ -40,15 +34,6 @@ fn add_file(path: &str) -> String {
 fn add(x: &str, y: &str) -> String {
     format!("[{},{}]", x, y)
 }
-
-// To check whether it's the right answer, the snailfish teacher only checks the 
-// magnitude of the final sum. The magnitude of a pair is 3 times the magnitude of 
-// its left element plus 2 times the magnitude of its right element. The magnitude
-//  of a regular number is just that number.
-
-// For example, the magnitude of [9,1] is 3*9 + 2*1 = 29; the magnitude of 
-// [1,9] is 3*1 + 2*9 = 21. Magnitude calculations are recursive: the magnitude of
-//  [[9,1],[1,9]] is 3*29 + 2*21 = 129.
 
 fn magnitude(tree: &TreeNode<u32>) -> u32 {
     let mut sum = 0;
@@ -62,10 +47,57 @@ fn magnitude(tree: &TreeNode<u32>) -> u32 {
     return sum;
 }
 
+fn find_max_magnitude(path: &str) -> u32 {
+    let reader = BufReader::new(File::open(path).unwrap());
+    let mut all_numbers: Vec<String> = Vec::new();
+    for line in reader.lines() {
+        let line = line.unwrap();
+        all_numbers.push(line);
+    }
+
+    let mut max_mag = 0;
+    for i in 0..all_numbers.len() {
+        for j in 0..all_numbers.len() {
+            if i == j {
+                continue;
+            }
+            let a = &all_numbers[i];
+            let b = &all_numbers[j];
+
+            let sum = add(a, b);
+            let mut tree = parse_line_to_tree(&mut sum.chars());
+            reduce(&mut tree);
+            let mag = magnitude(&tree);
+            if mag > max_mag {
+                max_mag = mag;
+            }
+        }
+    }
+    return max_mag;
+}
+
+fn reduce(tree: &mut TreeNode<u32>) {
+    let mut explode_result = true;
+    let mut split_result = true;
+    while explode_result || split_result {
+        // let t = parse_tree_to_line(&tree);
+        // println!("{}", t);
+        explode_result = explode(tree, 0, 4).2;
+        if !explode_result {
+            split_result = split(tree);
+        }
+    }
+}
+
 #[cfg(test)]
 
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_find_max_mag() {
+        assert_eq!(find_max_magnitude("src/test6.txt"), 3993);
+    }
 
     #[test]
     fn test_test_file_6() {
