@@ -14,19 +14,24 @@ fn parse_line_to_tree(line_chars: &mut Chars<'_>) -> TreeNode<u32> {
         left: None,
         right: None,
     };
-    let next = line_chars.next();
+    let mut next = line_chars.next();
     if next == Some('[') {
 
         node.left = Some(Box::new(parse_line_to_tree(line_chars)));
-        // moves to the ','
-        line_chars.next();
+        // // moves to the ','
+        // line_chars.next();
 
         node.right = Some(Box::new(parse_line_to_tree(line_chars)));
 
         // moves to the ']'
         line_chars.next();
     } else {
-        let literal = next.unwrap().to_digit(10).unwrap();
+        let mut literal = String::new();
+        while next != Some(',') && next != Some(']') {
+            literal.push(next.unwrap());
+            next = line_chars.next();
+        }
+        let literal = literal.parse::<u32>().unwrap();
         node.literal = Some(literal);
     }
     return node;
@@ -56,6 +61,34 @@ fn print_tree(tree: &TreeNode<u32>, depth: u32, is_root: bool, is_left: bool) {
     }
     if tree.right.is_some(){
         print_tree(&tree.right.as_ref().unwrap(), depth + 1, false, false);
+    }
+}
+
+fn split_literal_into_left_right(node: &mut TreeNode<u32>) {
+    if node.literal.is_some() {
+        let literal = node.literal.take().unwrap();
+        node.left = Some(Box::new(TreeNode {
+            literal: Some(literal / 2),
+            left: None,
+            right: None,
+        }));
+        node.right = Some(Box::new(TreeNode {
+            literal: Some(literal - literal / 2),
+            left: None,
+            right: None,
+        }));
+    }
+}
+
+fn split(tree: &mut TreeNode<u32>) {
+    if tree.left.is_some() {
+       split(tree.left.as_mut().unwrap());
+    } else if let Some(literal) = tree.literal {
+        if literal >= 10 {
+            split_literal_into_left_right(tree);
+        }
+    } else if tree.right.is_some() {
+        split(tree.right.as_mut().unwrap());
     }
 }
 
@@ -130,6 +163,28 @@ fn pt(tree: &TreeNode<u32>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    
+    #[test]
+    fn test_split() {
+        let mut lc = "[[[[0,7],4],[15,[0,13]]],[1,1]]".chars();
+        let mut tree = parse_line_to_tree(&mut lc);
+        split(&mut tree);
+        let line = parse_tree_to_line(&tree);
+        assert_eq!(line, "[[[[0,7],4],[[7,8],[0,13]]],[1,1]]");
+    }
+
+    #[test]
+    fn test_split_literal() {
+        let mut tree = TreeNode {
+            literal: Some(5),
+            left: None,
+            right: None,
+        };
+        split_literal_into_left_right(&mut tree);
+        assert_eq!(tree.left.as_ref().unwrap().literal.unwrap(), 2);
+        assert_eq!(tree.right.as_ref().unwrap().literal.unwrap(), 3);
+        assert_eq!(tree.literal, None);
+    }
 
     #[test]
     fn test_explode() {
