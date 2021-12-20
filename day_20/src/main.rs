@@ -4,6 +4,29 @@ use std::str::Chars;
 
 
 fn main() {
+    // let reader = BufReader::new(File::open("src/input.txt").unwrap());
+    // let mut lines = reader.lines();
+    // let algo_line = lines.next().unwrap().unwrap();
+    // let algo: Vec<char> = algo_line.chars().collect();
+    // // empty line
+    // lines.next();
+    
+    // let mut original_image: Vec<Vec<char>> = Vec::new();
+    // for (_, line) in lines.enumerate() {
+    //     let line = line.unwrap();
+    //     original_image.push(line.chars().collect());
+    // }
+
+    // let padded_image = pad_image(&original_image, '.');
+    // let enhanced_image = enhance(&padded_image, &algo, '.');
+    // println!("lit pixel count {}", count_lit_pixels(&enhanced_image));
+    // let padded_image = pad_image(&enhanced_image, '#');
+    // let enhanced_image = enhance(&padded_image, &algo, '#');
+    // println!("lit pixel count {}", count_lit_pixels(&enhanced_image));
+    run_50_p2();
+}
+
+fn run_50_p2() {
     let reader = BufReader::new(File::open("src/input.txt").unwrap());
     let mut lines = reader.lines();
     let algo_line = lines.next().unwrap().unwrap();
@@ -17,12 +40,44 @@ fn main() {
         original_image.push(line.chars().collect());
     }
 
+    let mut default_pixel = '.';
+    let padded_image = pad_image(&original_image, default_pixel);
+    let mut enhanced_image = enhance(&padded_image, &algo, default_pixel);
+
+    for i in 0..49 {
+        if default_pixel == '.' {
+            default_pixel = '#';
+        } else {
+            default_pixel = '.';
+        }
+        let padded_image = pad_image(&enhanced_image, default_pixel);
+        enhanced_image = enhance(&padded_image, &algo, default_pixel);
+    }
+    println!("lit pixel count {}", count_lit_pixels(&enhanced_image));   
+}
+
+fn run_50_test() {
+    let reader = BufReader::new(File::open("src/test.txt").unwrap());
+    let mut lines = reader.lines();
+    let algo_line = lines.next().unwrap().unwrap();
+    let algo: Vec<char> = algo_line.chars().collect();
+    // empty line
+    lines.next();
+    
+    let mut original_image: Vec<Vec<char>> = Vec::new();
+    for (_, line) in lines.enumerate() {
+        let line = line.unwrap();
+        original_image.push(line.chars().collect());
+    }
+
     let padded_image = pad_image(&original_image, '.');
-    let enhanced_image = enhance(&padded_image, &algo, '.');
-    println!("lit pixel count {}", count_lit_pixels(&enhanced_image));
-    let padded_image = pad_image(&enhanced_image, '#');
-    let enhanced_image = enhance(&padded_image, &algo, '#');
-    println!("lit pixel count {}", count_lit_pixels(&enhanced_image));
+    let mut enhanced_image = enhance(&padded_image, &algo, '.');
+
+    for i in 0..49 {
+        let padded_image = pad_image(&enhanced_image, '.');
+        enhanced_image = enhance(&padded_image, &algo, '.');
+    }
+    println!("lit pixel count {}", count_lit_pixels(&enhanced_image));     
 }
 
 fn count_lit_pixels(image: &Vec<Vec<char>>) -> usize {
