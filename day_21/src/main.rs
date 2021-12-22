@@ -4,7 +4,7 @@ fn main() {
     
     let mut player_2_score = 0;
     let mut player_2_position = 7;
-    const MAX_SCORE: u32 = 1000;
+    const MAX_SCORE: u64 = 21;
     let mut roll_count = 0;
     while player_1_score < MAX_SCORE && player_2_score < MAX_SCORE {
         roll_count += 1;
@@ -30,7 +30,39 @@ fn main() {
     println!("part 1 {}", roll_count * std::cmp::min(player_1_score, player_2_score));
 }
 
-fn calculate_roll(roll_count: u32) -> u32 {
+fn part1() {
+    let mut player_1_score = 0;
+    let mut player_1_position = 2;
+    
+    let mut player_2_score = 0;
+    let mut player_2_position = 7;
+    const MAX_SCORE: u64 = 1000;
+    let mut roll_count = 0;
+    while player_1_score < MAX_SCORE && player_2_score < MAX_SCORE {
+        roll_count += 1;
+        let roll = calculate_roll(roll_count);
+        player_1_position = calculate_new_position(player_1_position, roll);
+        player_1_score += player_1_position;
+        if player_1_score >= MAX_SCORE {
+            break;
+        }
+        roll_count += 1;
+        let roll = calculate_roll(roll_count);
+        player_2_position = calculate_new_position(player_2_position, roll);
+        player_2_score += player_2_position;
+        println!("Player 1 score: {}", player_1_score);
+        println!("Player 1 position: {}", player_1_position);
+        println!("Player 2 score: {}", player_2_score);
+        println!("Player 2 position: {}", player_2_position);
+    }
+    roll_count *= 3;
+    println!("Player 1 score: {}", player_1_score);
+    println!("Player 2 score: {}", player_2_score);
+    println!("roll count: {}", roll_count);
+    println!("part 1 {}", roll_count * std::cmp::min(player_1_score, player_2_score));
+}
+
+fn calculate_roll(roll_count: u64) -> u64 {
     let mod_val = 100;
     let mut sum = 0;
     let mut max = (roll_count * 3) % mod_val;
@@ -44,7 +76,7 @@ fn calculate_roll(roll_count: u32) -> u32 {
     return sum
 }
 
-fn calculate_new_position(current_position: u32, roll: u32) -> u32 {
+fn calculate_new_position(current_position: u64, roll: u64) -> u64 {
     let mod_val = 10;
     let new_position = (current_position + roll) % mod_val;
     if new_position == 0 {
